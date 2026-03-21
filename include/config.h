@@ -11,3 +11,8 @@
 #define LCD_DC X
 #define LCD_RST X
 #define LCD_BL X
+
+// DMA settings
+#define DMA_BUF_COUNT 4
+#define DMA_BUF_LEN 64
+#define FRAMES_PER_CHUNK 64
