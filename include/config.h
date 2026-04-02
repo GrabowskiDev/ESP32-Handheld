@@ -1,8 +1,8 @@
 // I2S pins and settings
 #define I2S_NUM I2S_NUM_0
-#define I2S_BCK_IO X
-#define I2S_WS_IO X
-#define I2S_DO_IO X
+#define I2S_BCK_IO 17
+#define I2S_WS_IO 16
+#define I2S_DO_IO 18
 
 // LCD
 #define LCD_DIN X
