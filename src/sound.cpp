@@ -1,30 +1,33 @@
 #include "sound.h"
-
 #include "config.h"
 
-#define SOUND_QUEUE_LENGTH 4
+#define SOUND_QUEUE_LENGTH 10
 
 static QueueHandle_t soundQueue;
 static TaskHandle_t soundTaskHandle = nullptr;
 
-volatile SoundType Sound::currentSoundState = SOUND_NONE;
+// We will keep two file objects for the software mixer
+File bgmFile;
+File sfxFile;
 
-static const char* soundFiles[] = {nullptr, "/ignite.wav", "/extinguish.wav", "/hum.wav",
-                                   "/swing.wav"};
+wav_header_t bgm_header;
+wav_header_t sfx_header;
 
-File wavFile;
-wav_header_t wav_header;
+bool isBgmPlaying = false;
+bool isSfxPlaying = false;
+bool loopBgm = false;
+char currentBgmFilename[32] = {0};
 
 void Sound::setup() {
     // Mount SPIFFS
     if (!SPIFFS.begin(true)) {
-        Serial.println("SPIFFS Mount Failed");
+        Serial.println("SPIFFS Mount Failed in Sound::setup()");
         return;
     }
 
     // I2S config
     i2s_config_t i2sConfig = {.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-                              .sample_rate = 44100,
+                              .sample_rate = 44100, // Standard WAV rate
                               .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
                               .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
                               .communication_format = (i2s_comm_format_t)I2S_COMM_FORMAT_I2S,
@@ -44,104 +47,169 @@ void Sound::setup() {
     i2s_driver_install(I2S_NUM, &i2sConfig, 0, NULL);
     i2s_set_pin(I2S_NUM, &pinConfig);
 
-    // Create sound queue
-    soundQueue = xQueueCreate(SOUND_QUEUE_LENGTH, sizeof(SoundType));
+    // Create command queue
+    soundQueue = xQueueCreate(SOUND_QUEUE_LENGTH, sizeof(SoundCommand));
 }
 
-void playWav(const char* filename, volatile SoundType* soundStatePtr, SoundType thisSound) {
-    if (!filename) return;
-
-    wavFile = SPIFFS.open(filename, "r");
-    if (!wavFile) {
-        Serial.printf("Failed to open WAV file: %s\n", filename);
-        return;
-    }
-
-    // Read WAV header
-    wavFile.read((uint8_t*)&wav_header, sizeof(wav_header_t));
-    if (wav_header.bit_depth != 16) {
-        Serial.printf("ERROR: bit depth %d is not supported\n", wav_header.bit_depth);
-        return;
-    }
-    i2s_set_sample_rates(I2S_NUM, wav_header.sample_rate);
-
-    stereo_frame_t frames[FRAMES_PER_CHUNK];
-    size_t bytesWritten;
-    int num_channels = wav_header.num_channels;
-
-    SoundType newCommand;
-    while (wavFile.available() > 0) {
-        // Check for interruption after each chunk
-        if (soundStatePtr && *soundStatePtr != thisSound) {
-            break;
-        }
-        // Check for new command in the queue (non-blocking)
-        if (soundQueue && xQueueReceive(soundQueue, &newCommand, 0)) {
-            // Interrupt playback if a new command is received
-            *soundStatePtr = newCommand;
-            break;
-        }
-        for (int i = 0; i < FRAMES_PER_CHUNK; i++) {
-            wavFile.read((uint8_t*)&frames[i].left, sizeof(int16_t));
-            if (num_channels == 1) {
-                frames[i].right = frames[i].left;
-            } else {
-                wavFile.read((uint8_t*)&frames[i].right, sizeof(int16_t));
-            }
-        }
-        i2s_write(I2S_NUM, (const char*)frames, sizeof(frames), &bytesWritten, portMAX_DELAY);
-    }
-    wavFile.close();
-    if (thisSound == SOUND_SWING) {
-        Sound::play(SOUND_HUM);
-    }
+// Simple clipping helper function
+int16_t clipAudio(int32_t sample) {
+    if (sample > 32767) return 32767;
+    if (sample < -32768) return -32768;
+    return (int16_t)sample;
 }
 
 void soundTask(void* pvParameters) {
+    stereo_frame_t mixFrames[FRAMES_PER_CHUNK];
+    size_t bytesWritten;
+    
     while (true) {
-        SoundType requestedSound;
-        // Always check for new command
-        if (xQueueReceive(soundQueue, &requestedSound, 0)) {
-            Sound::currentSoundState = requestedSound;
+        SoundCommand cmd;
+        
+        if (xQueueReceive(soundQueue, &cmd, 0)) {
+            if (cmd.type == CMD_PLAY_BGM) {
+                if (bgmFile) bgmFile.close();
+                strncpy(currentBgmFilename, cmd.filename, 31);
+                bgmFile = SPIFFS.open(cmd.filename, "r");
+                if (bgmFile) {
+                    size_t bytesRead = bgmFile.read((uint8_t*)&bgm_header, sizeof(wav_header_t));
+                    if (bytesRead == sizeof(wav_header_t) && bgm_header.sample_rate > 0) {
+                        isBgmPlaying = true;
+                        loopBgm = cmd.loop;
+                        i2s_set_sample_rates(I2S_NUM, bgm_header.sample_rate);
+                    } else {
+                        Serial.printf("Invalid or empty BGM WAV file: %s\n", cmd.filename);
+                        bgmFile.close();
+                        isBgmPlaying = false;
+                    }
+                } else {
+                    Serial.printf("Failed to open BGM: %s\n", cmd.filename);
+                }
+            } else if (cmd.type == CMD_STOP_BGM) {
+                if (bgmFile) bgmFile.close();
+                isBgmPlaying = false;
+            } else if (cmd.type == CMD_PLAY_SFX) {
+                if (sfxFile) sfxFile.close();
+                sfxFile = SPIFFS.open(cmd.filename, "r");
+                if (sfxFile) {
+                    size_t bytesRead = sfxFile.read((uint8_t*)&sfx_header, sizeof(wav_header_t));
+                    if (bytesRead == sizeof(wav_header_t) && sfx_header.sample_rate > 0) {
+                        isSfxPlaying = true;
+                    } else {
+                        Serial.printf("Invalid or empty SFX WAV file: %s\n", cmd.filename);
+                        sfxFile.close();
+                        isSfxPlaying = false;
+                    }
+                } else {
+                    Serial.printf("Failed to open SFX: %s\n", cmd.filename);
+                }
+            }
         }
 
-        switch (Sound::currentSoundState) {
-            case SOUND_IGNITE:
-                playWav(soundFiles[SOUND_IGNITE], &Sound::currentSoundState, SOUND_IGNITE);
-                if (Sound::currentSoundState != SOUND_IGNITE) break;
-                Sound::currentSoundState = SOUND_HUM;
-                break;
-            case SOUND_EXTINGUISH:
-                playWav(soundFiles[SOUND_EXTINGUISH], &Sound::currentSoundState, SOUND_EXTINGUISH);
-                Sound::currentSoundState = SOUND_NONE;
-                break;
-            case SOUND_SWING:
-                playWav(soundFiles[SOUND_SWING], &Sound::currentSoundState, SOUND_SWING);
-                if (Sound::currentSoundState != SOUND_SWING) break;
-                // Sound::currentSoundState = SOUND_HUM;
-                break;
-            case SOUND_HUM:
-                while (Sound::currentSoundState == SOUND_HUM) {
-                    playWav(soundFiles[SOUND_HUM], &Sound::currentSoundState, SOUND_HUM);
-                    if (Sound::currentSoundState != SOUND_HUM) break;
+        memset(mixFrames, 0, sizeof(mixFrames));
+        bool hasAudio = false;
+
+        // Process BGM chunk
+        if (isBgmPlaying && bgmFile) {
+            int bytesPerFrame = (bgm_header.num_channels == 1) ? 2 : 4;
+            int toRead = FRAMES_PER_CHUNK * bytesPerFrame;
+            uint8_t readBuf[FRAMES_PER_CHUNK * 4];
+            
+            int bytesRead = bgmFile.read(readBuf, toRead);
+            
+            if (bytesRead < bytesPerFrame) {
+                if (loopBgm) {
+                    bgmFile.seek(sizeof(wav_header_t));
+                } else {
+                    isBgmPlaying = false;
+                    bgmFile.close();
                 }
-                break;
-            case SOUND_NONE:
-            default:
-                vTaskDelay(10 / portTICK_PERIOD_MS);
-                break;
+            } else {
+                int framesRead = bytesRead / bytesPerFrame;
+                int bufIdx = 0;
+                for (int i = 0; i < framesRead; i++) {
+                    int16_t sampleLeft = *((int16_t*)(readBuf + bufIdx));
+                    bufIdx += 2;
+                    int16_t sampleRight = sampleLeft;
+                    if (bgm_header.num_channels == 2) {
+                        sampleRight = *((int16_t*)(readBuf + bufIdx));
+                        bufIdx += 2;
+                    }
+                    mixFrames[i].left = sampleLeft;
+                    mixFrames[i].right = sampleRight;
+                }
+                hasAudio = true;
+            }
+        }
+
+        // Process SFX chunk and Mix
+        if (isSfxPlaying && sfxFile) {
+            int bytesPerFrame = (sfx_header.num_channels == 1) ? 2 : 4;
+            int toRead = FRAMES_PER_CHUNK * bytesPerFrame;
+            uint8_t readBuf[FRAMES_PER_CHUNK * 4];
+            
+            int bytesRead = sfxFile.read(readBuf, toRead);
+            
+            if (bytesRead < bytesPerFrame) {
+                isSfxPlaying = false;
+                sfxFile.close();
+            } else {
+                int framesRead = bytesRead / bytesPerFrame;
+                int bufIdx = 0;
+                for (int i = 0; i < framesRead; i++) {
+                    int16_t sampleLeft = *((int16_t*)(readBuf + bufIdx));
+                    bufIdx += 2;
+                    int16_t sampleRight = sampleLeft;
+                    if (sfx_header.num_channels == 2) {
+                        sampleRight = *((int16_t*)(readBuf + bufIdx));
+                        bufIdx += 2;
+                    }
+                    // Mix samples directly by adding and clipping
+                    mixFrames[i].left = clipAudio((int32_t)mixFrames[i].left + (int32_t)sampleLeft);
+                    mixFrames[i].right = clipAudio((int32_t)mixFrames[i].right + (int32_t)sampleRight);
+                }
+                hasAudio = true;
+            }
+        }
+
+        if (hasAudio) {
+            i2s_write(I2S_NUM, (const char*)mixFrames, sizeof(mixFrames), &bytesWritten, portMAX_DELAY);
+        } else {
+            // Nothing to play, rest for bit
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
 }
 
 void Sound::startTask() {
     if (!soundTaskHandle) {
-        xTaskCreatePinnedToCore(soundTask, "SoundTask", 4096, NULL, 1, &soundTaskHandle, 1);
+        // Run on Core 0 (background) instead of Core 1 (game loop) to prevent game lagging
+        xTaskCreatePinnedToCore(soundTask, "SoundTask", 16384, NULL, 2, &soundTaskHandle, 0);
     }
 }
 
-void Sound::play(SoundType type) {
+void Sound::playBGM(const char* filename, bool loop) {
     if (soundQueue) {
-        xQueueSend(soundQueue, &type, 0);
+        SoundCommand cmd;
+        cmd.type = CMD_PLAY_BGM;
+        cmd.loop = loop;
+        strncpy(cmd.filename, filename, 31);
+        xQueueSend(soundQueue, &cmd, 0);
+    }
+}
+
+void Sound::stopBGM() {
+    if (soundQueue) {
+        SoundCommand cmd;
+        cmd.type = CMD_STOP_BGM;
+        xQueueSend(soundQueue, &cmd, 0);
+    }
+}
+
+void Sound::playSFX(const char* filename) {
+    if (soundQueue) {
+        SoundCommand cmd;
+        cmd.type = CMD_PLAY_SFX;
+        strncpy(cmd.filename, filename, 31);
+        xQueueSend(soundQueue, &cmd, 0);
     }
 }
