@@ -5,9 +5,13 @@
 #include "sound.h"
 #include "GameManager.h"
 #include "ExampleGame.h"
+#include "TetrisGame.h"
 
 // The core engine that manages states/games
 GameManager gameManager;
+
+// Track which game is playing so Select can toggle them
+bool isTetrisActive = false;
 
 void setup() {
     Serial.begin(115200);
@@ -33,6 +37,17 @@ void setup() {
 void loop() {
     // 1. Update global hardware
     Buttons::update();
+
+    // --- GAME SWITCHER ---
+    if (Buttons::justPressed(BTN_SELECT)) {
+        if (isTetrisActive) {
+            gameManager.switchGame(new ExampleGame());
+        } else {
+            gameManager.switchGame(new TetrisGame());
+        }
+        isTetrisActive = !isTetrisActive;
+        Serial.println("Switched Games!");
+    }
 
     // 2. Pass control to the actively running game
     gameManager.update();
