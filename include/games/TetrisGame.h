@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IGame.h"
+#include "../core/IGame.h"
 #include <Arduino.h>
 
 #define TETRIS_ROWS 20

@@ -1,4 +1,4 @@
-#include "display.h"
+#include "hardware/display.h"
 
 namespace Display {
 

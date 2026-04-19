@@ -1,7 +1,7 @@
-#include "ExampleGame.h"
-#include "buttons.h"
-#include "display.h"
-#include "sound.h"
+#include "games/ExampleGame.h"
+#include "hardware/buttons.h"
+#include "hardware/display.h"
+#include "hardware/sound.h"
 
 void ExampleGame::start() {
     // Reset player state when game starts
