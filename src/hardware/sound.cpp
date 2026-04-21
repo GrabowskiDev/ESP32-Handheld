@@ -1,5 +1,5 @@
-#include "sound.h"
-#include "config.h"
+#include "hardware/sound.h"
+#include "core/config.h"
 
 #define SOUND_QUEUE_LENGTH 10
 

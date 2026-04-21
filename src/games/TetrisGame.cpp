@@ -1,7 +1,7 @@
-#include "TetrisGame.h"
-#include "display.h"
-#include "buttons.h"
-#include "sound.h"
+#include "games/TetrisGame.h"
+#include "hardware/display.h"
+#include "hardware/buttons.h"
+#include "hardware/sound.h"
 
 // 7 pieces, 4 rotations. Each 16-bit hex represents a 4x4 grid of blocks.
 static const uint16_t SHAPES[7][4] = {

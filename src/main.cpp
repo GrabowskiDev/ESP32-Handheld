@@ -1,11 +1,11 @@
 #include <Arduino.h>
-#include "config.h"
-#include "display.h"
-#include "buttons.h"
-#include "sound.h"
-#include "GameManager.h"
-#include "ExampleGame.h"
-#include "TetrisGame.h"
+#include "core/config.h"
+#include "hardware/display.h"
+#include "hardware/buttons.h"
+#include "hardware/sound.h"
+#include "core/GameManager.h"
+#include "games/ExampleGame.h"
+#include "games/TetrisGame.h"
 
 // The core engine that manages states/games
 GameManager gameManager;

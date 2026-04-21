@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include "config.h"
+#include "../core/config.h"
 
 enum ButtonID {
     BTN_UP,

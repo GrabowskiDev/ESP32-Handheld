@@ -1,4 +1,4 @@
-#include "GameManager.h"
+#include "core/GameManager.h"
 #include <Arduino.h>
 
 GameManager::GameManager() : currentGame(nullptr) {
