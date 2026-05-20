@@ -185,13 +185,41 @@ void TetrisGame::update() {
             } else {
                 currentPiece = heldPiece;
                 heldPiece = temp;
-                pieceX = 3;
-                pieceY = 0;
-                currentRotation = 0;
                 
-                if (checkCollision(pieceX, pieceY, currentRotation)) {
-                    gameOver = true;
-                    Sound::playSFX("/clash.wav");
+                // Spawn at the position of the old piece, taking borders/blocks into account
+                int targetX = pieceX;
+                int targetY = pieceY;
+                int targetRot = currentRotation;
+                bool foundSafe = false;
+                
+                // Boundary offset checks: prefer centered, then slight shifts (shifting up avoids locked pile below)
+                int offsetsX[] = {0, -1, 1, -2, 2};
+                int offsetsY[] = {0, -1, -2, 1, -3};
+                
+                for (int yOff : offsetsY) {
+                    for (int xOff : offsetsX) {
+                        if (!checkCollision(targetX + xOff, targetY + yOff, targetRot)) {
+                            targetX += xOff;
+                            targetY += yOff;
+                            foundSafe = true;
+                            break;
+                        }
+                    }
+                    if (foundSafe) break;
+                }
+                
+                if (foundSafe) {
+                    pieceX = targetX;
+                    pieceY = targetY;
+                } else {
+                    // Fallback to top-center if entirely blocked
+                    pieceX = 3;
+                    pieceY = 0;
+                    currentRotation = 0;
+                    if (checkCollision(pieceX, pieceY, currentRotation)) {
+                        gameOver = true;
+                        Sound::playSFX("/clash.wav");
+                    }
                 }
             }
             hasHeldThisTurn = true;
