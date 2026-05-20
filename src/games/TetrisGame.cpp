@@ -26,7 +26,7 @@ static const uint32_t COLORS[8] = {
 };
 
 void TetrisGame::start() {
-    randomSeed(analogRead(0));
+    randomSeed(esp_random());
     resetBoard();
     gameOver = false;
     score = 0;
