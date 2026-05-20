@@ -31,6 +31,8 @@ void TetrisGame::start() {
     gameOver = false;
     score = 0;
     fallSpeed = 1000;
+    heldPiece = -1;
+    hasHeldThisTurn = false;
     lastFallTime = millis();
     spawnPiece();
 
@@ -87,6 +89,7 @@ void TetrisGame::lockPiece() {
     
     Sound::playSFX("/swing.wav"); // Lock sound
     clearLines();
+    hasHeldThisTurn = false;
     spawnPiece();
 }
 
@@ -168,6 +171,31 @@ void TetrisGame::update() {
         }
         lockPiece();
         lastFallTime = millis();
+    }
+    
+    // Hold piece mechanic with SELECT
+    if (Buttons::justPressed(BTN_SELECT)) {
+        if (!hasHeldThisTurn) {
+            Sound::playSFX("/ignite.wav"); // Swap sound
+            
+            int temp = currentPiece;
+            if (heldPiece == -1) {
+                heldPiece = currentPiece;
+                spawnPiece();
+            } else {
+                currentPiece = heldPiece;
+                heldPiece = temp;
+                pieceX = 3;
+                pieceY = 0;
+                currentRotation = 0;
+                
+                if (checkCollision(pieceX, pieceY, currentRotation)) {
+                    gameOver = true;
+                    Sound::playSFX("/clash.wav");
+                }
+            }
+            hasHeldThisTurn = true;
+        }
     }
 
     // Auto Fall

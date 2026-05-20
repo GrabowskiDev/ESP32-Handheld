@@ -20,6 +20,8 @@ private:
     bool gameOver;
     unsigned long lastFallTime;
     unsigned long fallSpeed;
+    int heldPiece;
+    bool hasHeldThisTurn;
 
     void spawnPiece();
     bool checkCollision(int pX, int pY, int rot);
