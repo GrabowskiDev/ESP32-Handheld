@@ -84,21 +84,41 @@ void MainMenu::updateSettingsMenu() {
         return;
     }
 
-    if (Buttons::justPressed(BTN_DOWN) || Buttons::justPressed(BTN_UP)) {
-        settingsCursor = (settingsCursor + 1) % 2; // 0: BGM Toggle, 1: Back to Main Menu
+    if (Buttons::justPressed(BTN_DOWN)) {
+        settingsCursor = (settingsCursor + 1) % 3;
         Sound::playSFX("/swing.wav");
+    }
+    if (Buttons::justPressed(BTN_UP)) {
+        settingsCursor = (settingsCursor + 2) % 3; // equivalent to -1
+        Sound::playSFX("/swing.wav");
+    }
+    
+    // Adjust brightness on item 0 using D-pad LEFT/RIGHT
+    if (settingsCursor == 0) {
+        if (Buttons::justPressed(BTN_LEFT)) {
+            int p = Display::getBrightness() - 5;
+            if (p < 10) p = 10; // Clamped minimum so screen is still readable
+            Display::setBrightness(p);
+            Sound::playSFX("/swing.wav");
+        }
+        if (Buttons::justPressed(BTN_RIGHT)) {
+            int p = Display::getBrightness() + 5;
+            if (p > 100) p = 100;
+            Display::setBrightness(p);
+            Sound::playSFX("/swing.wav");
+        }
     }
     
     if (Buttons::justPressed(BTN_A) || Buttons::justPressed(BTN_START)) {
         Sound::playSFX("/ignite.wav");
-        if (settingsCursor == 0) {
+        if (settingsCursor == 1) {
             bgmEnabled = !bgmEnabled;
             if (bgmEnabled) {
                 Sound::playBGM("/hum.wav", true);
             } else {
                 Sound::stopBGM();
             }
-        } else if (settingsCursor == 1) {
+        } else if (settingsCursor == 2) {
             activeScreen = SCREEN_MAIN;
             selectedItem = 2; // Keep highlight on "Settings"
             startMillis = millis(); // Reset grace period returning to main menu
@@ -242,11 +262,11 @@ void MainMenu::drawSettingsMenu() {
     Display::backbuffer.drawFastHLine(15, 38, 290, TFT_YELLOW);
     
     // 2. Settings Items
-    int startY = 50;
+    int startY = 48;
     
-    // Setting 1: BGM Mute
-    bool isBgmSelected = (settingsCursor == 0);
-    if (isBgmSelected) {
+    // Setting 1: Display Brightness
+    bool isBrightSelected = (settingsCursor == 0);
+    if (isBrightSelected) {
         Display::backbuffer.fillRoundRect(15, startY - 4, 290, 24, 3, TFT_NAVY);
         Display::backbuffer.drawRoundRect(15, startY - 4, 290, 24, 3, TFT_CYAN);
         Display::backbuffer.setTextColor(TFT_WHITE, TFT_NAVY);
@@ -255,11 +275,45 @@ void MainMenu::drawSettingsMenu() {
     }
     Display::backbuffer.setTextSize(1.5);
     Display::backbuffer.setCursor(25, startY + 4);
+    Display::backbuffer.print("Brightness:");
+    
+    // Draw graphical slider for brightness
+    int percent = Display::getBrightness();
+    
+    // Graphical slider coordinates
+    int sliderX = 130;
+    int sliderY = startY + 8;
+    int sliderW = 100;
+    int sliderH = 4;
+    
+    // Slider track
+    Display::backbuffer.fillRect(sliderX, sliderY, sliderW, sliderH, TFT_DARKGREY);
+    // Filled progress
+    int progressW = (percent * sliderW) / 100;
+    Display::backbuffer.fillRect(sliderX, sliderY, progressW, sliderH, isBrightSelected ? TFT_CYAN : TFT_LIGHTGREY);
+    // Slider handle
+    Display::backbuffer.fillRect(sliderX + progressW - 3, sliderY - 3, 6, 10, TFT_WHITE);
+    
+    // Percentage text
+    Display::backbuffer.setCursor(245, startY + 4);
+    Display::backbuffer.printf("%3d%%", percent);
+
+    // Setting 2: BGM Mute
+    int bgmY = startY + 28;
+    bool isBgmSelected = (settingsCursor == 1);
+    if (isBgmSelected) {
+        Display::backbuffer.fillRoundRect(15, bgmY - 4, 290, 24, 3, TFT_NAVY);
+        Display::backbuffer.drawRoundRect(15, bgmY - 4, 290, 24, 3, TFT_CYAN);
+        Display::backbuffer.setTextColor(TFT_WHITE, TFT_NAVY);
+    } else {
+        Display::backbuffer.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    }
+    Display::backbuffer.setCursor(25, bgmY + 4);
     Display::backbuffer.printf("Background Music: %s", bgmEnabled ? "PLAYING [ON]" : "MUTED  [OFF]");
     
-    // Setting 2: Back to Main Menu
-    int backY = startY + 28;
-    bool isBackSelected = (settingsCursor == 1);
+    // Setting 3: Back to Main Menu
+    int backY = bgmY + 28;
+    bool isBackSelected = (settingsCursor == 2);
     if (isBackSelected) {
         Display::backbuffer.fillRoundRect(15, backY - 4, 290, 24, 3, TFT_NAVY);
         Display::backbuffer.drawRoundRect(15, backY - 4, 290, 24, 3, TFT_CYAN);
@@ -271,33 +325,33 @@ void MainMenu::drawSettingsMenu() {
     Display::backbuffer.print("<< Save & Back to Menu");
     
     // 3. LOW LEVEL HARDWARE MONITOR PANEL (WOW factor)
-    int hwY = 115;
+    int hwY = 138;
     
     // Border
-    Display::backbuffer.fillRoundRect(15, hwY, 290, 115, 5, Display::backbuffer.color565(10, 15, 25));
-    Display::backbuffer.drawRoundRect(15, hwY, 290, 115, 5, TFT_MAGENTA);
+    Display::backbuffer.fillRoundRect(15, hwY, 290, 96, 5, Display::backbuffer.color565(10, 15, 25));
+    Display::backbuffer.drawRoundRect(15, hwY, 290, 96, 5, TFT_MAGENTA);
     
     // Header
     Display::backbuffer.setTextColor(TFT_MAGENTA, Display::backbuffer.color565(10, 15, 25));
     Display::backbuffer.setTextSize(1);
-    Display::backbuffer.setCursor(25, hwY + 8);
+    Display::backbuffer.setCursor(25, hwY + 6);
     Display::backbuffer.print("CHIP HARDWARE DASHBOARD");
-    Display::backbuffer.drawFastHLine(20, hwY + 20, 280, TFT_DARKGREY);
+    Display::backbuffer.drawFastHLine(20, hwY + 16, 280, TFT_DARKGREY);
     
     // Specs
     Display::backbuffer.setTextColor(TFT_GREEN, Display::backbuffer.color565(10, 15, 25));
     Display::backbuffer.setTextSize(1);
     
-    Display::backbuffer.setCursor(25, hwY + 28);
+    Display::backbuffer.setCursor(25, hwY + 22);
     Display::backbuffer.printf("Chip Model: %s", chipModel.c_str());
     
-    Display::backbuffer.setCursor(25, hwY + 42);
+    Display::backbuffer.setCursor(25, hwY + 34);
     Display::backbuffer.printf("CPU Clock:  %u MHz", cpuSpeedMhz);
     
     // Memory conversion KB
     float freeHeapKb = freeHeap / 1024.0;
     float totalHeapKb = totalHeap / 1024.0;
-    Display::backbuffer.setCursor(25, hwY + 56);
+    Display::backbuffer.setCursor(25, hwY + 46);
     Display::backbuffer.printf("RAM Heap:   %.1f KB / %.1f KB", freeHeapKb, totalHeapKb);
     
     // SPIFFS Disk Info
@@ -306,14 +360,14 @@ void MainMenu::drawSettingsMenu() {
     float totalKb = totalS / 1024.0;
     float usedKb = usedS / 1024.0;
     
-    Display::backbuffer.setCursor(25, hwY + 70);
+    Display::backbuffer.setCursor(25, hwY + 58);
     Display::backbuffer.printf("Disk Size:  %.1f KB", totalKb);
     
-    Display::backbuffer.setCursor(25, hwY + 84);
+    Display::backbuffer.setCursor(25, hwY + 70);
     Display::backbuffer.printf("Disk Used:  %.1f KB (%.1f%%)", usedKb, (float)usedS / (float)totalS * 100.0);
     
     // OS Core
-    Display::backbuffer.setCursor(25, hwY + 98);
+    Display::backbuffer.setCursor(25, hwY + 82);
     Display::backbuffer.print("OS Version: Gemini Handheld v1.0.0");
 }
 

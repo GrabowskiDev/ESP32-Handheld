@@ -11,4 +11,7 @@ namespace Display {
     void setup();
     void clear(uint32_t color = TFT_BLACK);
     void update(); // Pushes backbuffer to screen
+    
+    void setBrightness(uint8_t value);
+    uint8_t getBrightness();
 }
