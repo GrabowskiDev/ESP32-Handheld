@@ -27,6 +27,7 @@ private:
     void clearLines();
     void resetBoard();
     void drawBlock(int x, int y, uint32_t color);
+    void drawGhostBlock(int x, int y, uint32_t color);
 
 public:
     void start() override;
