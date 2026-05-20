@@ -4,6 +4,7 @@
 class IGame {
 public:
     virtual ~IGame() {}
+    virtual bool isMainMenu() const { return false; }
 
     // Called once when the game is loaded into the GameManager
     virtual void start() = 0;

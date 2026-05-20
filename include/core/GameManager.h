@@ -17,4 +17,8 @@ public:
     // Engine ticks to be called from main.cpp loop
     void update();
     void draw();
+    
+    IGame* getCurrentGame() const { return currentGame; }
 };
+
+extern GameManager gameManager;

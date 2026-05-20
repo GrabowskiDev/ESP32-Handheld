@@ -4,14 +4,12 @@
 #include "hardware/buttons.h"
 #include "hardware/sound.h"
 #include "core/GameManager.h"
+#include "games/MainMenu.h"
 #include "games/ExampleGame.h"
 #include "games/TetrisGame.h"
 
 // The core engine that manages states/games
 GameManager gameManager;
-
-// Track which game is playing so Select can toggle them
-bool isTetrisActive = false;
 
 void setup() {
     Serial.begin(115200);
@@ -25,28 +23,25 @@ void setup() {
     Sound::setup();
     Sound::startTask();
 
-    // Background static music
-    Sound::playBGM("/hum.wav", true);
+    Serial.println("Framework Hardware Ready. Loading Main Menu.");
 
-    Serial.println("Framework Hardware Ready. Loading initial game.");
-
-    // Load the first game into the Game Manager!
-    gameManager.switchGame(new ExampleGame());
+    // Load the Main Menu launcher into the Game Manager!
+    gameManager.switchGame(new MainMenu());
 }
 
 void loop() {
     // 1. Update global hardware
     Buttons::update();
 
-    // --- GAME SWITCHER ---
-    if (Buttons::justPressed(BTN_SELECT)) {
-        if (isTetrisActive) {
-            gameManager.switchGame(new ExampleGame());
-        } else {
-            gameManager.switchGame(new TetrisGame());
+    // --- GLOBAL EXIT CHORD ---
+    // Pressing SELECT + START together returns the player to the Main Menu (if not already there)
+    if (gameManager.getCurrentGame() && !gameManager.getCurrentGame()->isMainMenu()) {
+        if (Buttons::isPressed(BTN_SELECT) && Buttons::isPressed(BTN_START)) {
+            Serial.println("Shortcut triggered: Returning to Main Menu.");
+            Sound::playSFX("/extinguish.wav");
+            gameManager.switchGame(new MainMenu());
+            delay(300); // Debounce to prevent immediate double-triggers
         }
-        isTetrisActive = !isTetrisActive;
-        Serial.println("Switched Games!");
     }
 
     // 2. Pass control to the actively running game
@@ -59,3 +54,4 @@ void loop() {
     // 4. Frame Delay (approx 60 frames per second limit)
     delay(16); 
 }
+
