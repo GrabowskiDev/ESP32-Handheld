@@ -7,7 +7,7 @@ namespace Display {
 
     void setup() {
         tft.init();
-        tft.setRotation(1); // Landscape mode
+        tft.setRotation(3); // Landscape mode
         
         // Try creating a full-screen backbuffer for games to avoid flicker.
         // Screen is typically 320x240 for ILI9341. (Size: ~153KB RAM)

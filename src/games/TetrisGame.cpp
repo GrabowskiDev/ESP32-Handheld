@@ -145,15 +145,24 @@ void TetrisGame::update() {
         }
         lastFallTime = millis(); // Reset fall timer
     }
-    if (Buttons::justPressed(BTN_A) || Buttons::justPressed(BTN_UP)) {
+    // Rotate Clockwise with A
+    if (Buttons::justPressed(BTN_A)) {
         int newRot = (currentRotation + 1) % 4;
         if (!checkCollision(pieceX, pieceY, newRot)) {
             currentRotation = newRot;
             Sound::playSFX("/swing.wav");
         }
     }
-    // Hard Drop with B
+    // Rotate Counter-Clockwise with B
     if (Buttons::justPressed(BTN_B)) {
+        int newRot = (currentRotation + 3) % 4;
+        if (!checkCollision(pieceX, pieceY, newRot)) {
+            currentRotation = newRot;
+            Sound::playSFX("/swing.wav");
+        }
+    }
+    // Hard Drop with UP
+    if (Buttons::justPressed(BTN_UP)) {
         while (!checkCollision(pieceX, pieceY + 1, currentRotation)) {
             pieceY++;
         }
