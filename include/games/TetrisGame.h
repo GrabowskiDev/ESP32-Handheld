@@ -20,6 +20,8 @@ private:
     bool gameOver;
     unsigned long lastFallTime;
     unsigned long fallSpeed;
+    int heldPiece;
+    bool hasHeldThisTurn;
 
     void spawnPiece();
     bool checkCollision(int pX, int pY, int rot);
@@ -27,6 +29,7 @@ private:
     void clearLines();
     void resetBoard();
     void drawBlock(int x, int y, uint32_t color);
+    void drawGhostBlock(int x, int y, uint32_t color);
 
 public:
     void start() override;

@@ -31,6 +31,8 @@ void TetrisGame::start() {
     gameOver = false;
     score = 0;
     fallSpeed = 1000;
+    heldPiece = -1;
+    hasHeldThisTurn = false;
     lastFallTime = millis();
     spawnPiece();
 
@@ -87,6 +89,7 @@ void TetrisGame::lockPiece() {
     
     Sound::playSFX("/swing.wav"); // Lock sound
     clearLines();
+    hasHeldThisTurn = false;
     spawnPiece();
 }
 
@@ -169,6 +172,59 @@ void TetrisGame::update() {
         lockPiece();
         lastFallTime = millis();
     }
+    
+    // Hold piece mechanic with SELECT
+    if (Buttons::justPressed(BTN_SELECT)) {
+        if (!hasHeldThisTurn) {
+            Sound::playSFX("/ignite.wav"); // Swap sound
+            
+            int temp = currentPiece;
+            if (heldPiece == -1) {
+                heldPiece = currentPiece;
+                spawnPiece();
+            } else {
+                currentPiece = heldPiece;
+                heldPiece = temp;
+                
+                // Spawn at the position of the old piece, taking borders/blocks into account
+                int targetX = pieceX;
+                int targetY = pieceY;
+                int targetRot = currentRotation;
+                bool foundSafe = false;
+                
+                // Boundary offset checks: prefer centered, then slight shifts (shifting up avoids locked pile below)
+                int offsetsX[] = {0, -1, 1, -2, 2};
+                int offsetsY[] = {0, -1, -2, 1, -3};
+                
+                for (int yOff : offsetsY) {
+                    for (int xOff : offsetsX) {
+                        if (!checkCollision(targetX + xOff, targetY + yOff, targetRot)) {
+                            targetX += xOff;
+                            targetY += yOff;
+                            foundSafe = true;
+                            break;
+                        }
+                    }
+                    if (foundSafe) break;
+                }
+                
+                if (foundSafe) {
+                    pieceX = targetX;
+                    pieceY = targetY;
+                } else {
+                    // Fallback to top-center if entirely blocked
+                    pieceX = 3;
+                    pieceY = 0;
+                    currentRotation = 0;
+                    if (checkCollision(pieceX, pieceY, currentRotation)) {
+                        gameOver = true;
+                        Sound::playSFX("/clash.wav");
+                    }
+                }
+            }
+            hasHeldThisTurn = true;
+        }
+    }
 
     // Auto Fall
     if (millis() - lastFallTime > fallSpeed) {
@@ -193,6 +249,17 @@ void TetrisGame::drawBlock(int x, int y, uint32_t color) {
     Display::backbuffer.fillRect(screenX, screenY, BLOCK_SIZE - 1, BLOCK_SIZE - 1, color);
 }
 
+void TetrisGame::drawGhostBlock(int x, int y, uint32_t color) {
+    int startX = 110; 
+    int startY = 20;
+
+    int screenX = startX + (x * BLOCK_SIZE);
+    int screenY = startY + (y * BLOCK_SIZE);
+
+    // Draw outline slightly smaller to leave a grid border line
+    Display::backbuffer.drawRect(screenX, screenY, BLOCK_SIZE - 1, BLOCK_SIZE - 1, color);
+}
+
 void TetrisGame::draw() {
     Display::clear(TFT_BLACK);
 
@@ -206,6 +273,23 @@ void TetrisGame::draw() {
         for (int c = 0; c < TETRIS_COLS; c++) {
             if (board[r][c] != 0) {
                 drawBlock(c, r, COLORS[board[r][c]]);
+            }
+        }
+    }
+
+    // Draw ghost piece (outline projection at landing spot)
+    if (!gameOver) {
+        int ghostY = pieceY;
+        while (!checkCollision(pieceX, ghostY + 1, currentRotation)) {
+            ghostY++;
+        }
+        
+        uint16_t shape = SHAPES[currentPiece][currentRotation];
+        for (int i = 0; i < 16; i++) {
+            if (shape & (0x8000 >> i)) {
+                int px = pieceX + (i % 4);
+                int py = ghostY + (i / 4);
+                if (py >= 0) drawGhostBlock(px, py, COLORS[currentPiece + 1]);
             }
         }
     }
@@ -233,6 +317,30 @@ void TetrisGame::draw() {
     Display::backbuffer.println("Score:");
     Display::backbuffer.setCursor(10, 65);
     Display::backbuffer.println(score);
+
+    // Draw Hold Box
+    Display::backbuffer.setTextSize(1);
+    Display::backbuffer.setCursor(10, 95);
+    Display::backbuffer.println("HOLD:");
+    
+    // Draw a small border box for hold
+    Display::backbuffer.drawRect(10, 110, 48, 48, TFT_DARKGREY);
+    
+    if (heldPiece != -1) {
+        uint16_t shape = SHAPES[heldPiece][0]; // Draw default rotation
+        
+        // Center the 4x4 grid (32x32 pixels) inside the 48x48 box
+        int startX = 18;
+        int startY = 118;
+        
+        for (int i = 0; i < 16; i++) {
+            if (shape & (0x8000 >> i)) {
+                int bx = startX + (i % 4) * 8;
+                int by = startY + (i / 4) * 8;
+                Display::backbuffer.fillRect(bx, by, 7, 7, COLORS[heldPiece + 1]);
+            }
+        }
+    }
 
     if (gameOver) {
         Display::backbuffer.setTextColor(TFT_RED, TFT_BLACK);
