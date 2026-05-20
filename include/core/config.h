@@ -15,14 +15,14 @@
 #define LCD_BL X
 
 // Buttons (Update GPIOs to your actual wiring later)
-#define BTN_UP_PIN 15 //x
-#define BTN_DOWN_PIN 41 //x
-#define BTN_LEFT_PIN 42
-#define BTN_RIGHT_PIN 7 //x
+#define BTN_UP_PIN 6
+#define BTN_DOWN_PIN 40
+#define BTN_LEFT_PIN 39
+#define BTN_RIGHT_PIN 7
 #define BTN_A_PIN 5
-#define BTN_B_PIN 6
-#define BTN_START_PIN 39
-#define BTN_SELECT_PIN 40
+#define BTN_B_PIN 4
+#define BTN_START_PIN 41
+#define BTN_SELECT_PIN 42
 
 // DMA / Audio settings
 #define DMA_BUF_COUNT 8
