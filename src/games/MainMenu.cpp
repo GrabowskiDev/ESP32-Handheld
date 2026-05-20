@@ -385,10 +385,6 @@ void MainMenu::drawSettingsMenu() {
     
     Display::backbuffer.setCursor(25, hwY + 70);
     Display::backbuffer.printf("Disk Used:  %.1f KB (%.1f%%)", usedKb, (float)usedS / (float)totalS * 100.0);
-    
-    // OS Core
-    Display::backbuffer.setCursor(25, hwY + 82);
-    Display::backbuffer.print("OS Version: Gemini Handheld v1.0.0");
 }
 
 void MainMenu::stop() {
