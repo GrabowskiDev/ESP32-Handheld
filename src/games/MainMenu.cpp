@@ -15,6 +15,7 @@ void MainMenu::start() {
     settingsCursor = 0;
     bgOffset = 0;
     startMillis = millis();
+    lastAdjustTime = 0;
     
     // Play background menu music
     if (bgmEnabled) {
@@ -93,19 +94,38 @@ void MainMenu::updateSettingsMenu() {
         Sound::playSFX("/swing.wav");
     }
     
-    // Adjust brightness on item 0 using D-pad LEFT/RIGHT
+    // Adjust brightness on item 0 using D-pad LEFT/RIGHT with smooth autorepeat
     if (settingsCursor == 0) {
         if (Buttons::justPressed(BTN_LEFT)) {
             int p = Display::getBrightness() - 5;
-            if (p < 10) p = 10; // Clamped minimum so screen is still readable
+            if (p < 10) p = 10;
             Display::setBrightness(p);
             Sound::playSFX("/swing.wav");
+            lastAdjustTime = millis() + 150; // 150ms initial hold delay
+        } else if (Buttons::isPressed(BTN_LEFT)) {
+            if (millis() >= lastAdjustTime) {
+                int p = Display::getBrightness() - 5;
+                if (p < 10) p = 10;
+                Display::setBrightness(p);
+                Sound::playSFX("/swing.wav");
+                lastAdjustTime = millis() + 40; // 40ms repeat interval
+            }
         }
+        
         if (Buttons::justPressed(BTN_RIGHT)) {
             int p = Display::getBrightness() + 5;
             if (p > 100) p = 100;
             Display::setBrightness(p);
             Sound::playSFX("/swing.wav");
+            lastAdjustTime = millis() + 150; // 150ms initial hold delay
+        } else if (Buttons::isPressed(BTN_RIGHT)) {
+            if (millis() >= lastAdjustTime) {
+                int p = Display::getBrightness() + 5;
+                if (p > 100) p = 100;
+                Display::setBrightness(p);
+                Sound::playSFX("/swing.wav");
+                lastAdjustTime = millis() + 40; // 40ms repeat interval
+            }
         }
     }
     

@@ -22,6 +22,8 @@ private:
     unsigned long fallSpeed;
     int heldPiece;
     bool hasHeldThisTurn;
+    unsigned long lastLeftMoveTime;
+    unsigned long lastRightMoveTime;
 
     void spawnPiece();
     bool checkCollision(int pX, int pY, int rot);

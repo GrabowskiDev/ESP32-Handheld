@@ -34,6 +34,8 @@ void TetrisGame::start() {
     heldPiece = -1;
     hasHeldThisTurn = false;
     lastFallTime = millis();
+    lastLeftMoveTime = 0;
+    lastRightMoveTime = 0;
     spawnPiece();
 
     Serial.println("Tetris Game Started!");
@@ -136,11 +138,34 @@ void TetrisGame::update() {
     }
 
     // Input Handling
-    if (Buttons::justPressed(BTN_LEFT) && !checkCollision(pieceX - 1, pieceY, currentRotation)) {
-        pieceX--;
+    // Left Movement with Autorepeat (DAS)
+    if (Buttons::justPressed(BTN_LEFT)) {
+        if (!checkCollision(pieceX - 1, pieceY, currentRotation)) {
+            pieceX--;
+        }
+        lastLeftMoveTime = millis() + 250; // 250ms initial hold delay
+    } else if (Buttons::isPressed(BTN_LEFT)) {
+        if (millis() >= lastLeftMoveTime) {
+            if (!checkCollision(pieceX - 1, pieceY, currentRotation)) {
+                pieceX--;
+            }
+            lastLeftMoveTime = millis() + 150; // 150ms repeat interval (controlled slide speed)
+        }
     }
-    if (Buttons::justPressed(BTN_RIGHT) && !checkCollision(pieceX + 1, pieceY, currentRotation)) {
-        pieceX++;
+
+    // Right Movement with Autorepeat (DAS)
+    if (Buttons::justPressed(BTN_RIGHT)) {
+        if (!checkCollision(pieceX + 1, pieceY, currentRotation)) {
+            pieceX++;
+        }
+        lastRightMoveTime = millis() + 250; // 250ms initial hold delay
+    } else if (Buttons::isPressed(BTN_RIGHT)) {
+        if (millis() >= lastRightMoveTime) {
+            if (!checkCollision(pieceX + 1, pieceY, currentRotation)) {
+                pieceX++;
+            }
+            lastRightMoveTime = millis() + 150; // 150ms repeat interval (controlled slide speed)
+        }
     }
     if (Buttons::justPressed(BTN_DOWN)) {
         if (!checkCollision(pieceX, pieceY + 1, currentRotation)) {

@@ -16,6 +16,7 @@ private:
     static bool bgmEnabled;
     uint32_t bgOffset;
     unsigned long startMillis;
+    unsigned long lastAdjustTime;
     
     // Low level stats
     uint32_t freeHeap;
