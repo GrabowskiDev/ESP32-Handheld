@@ -30,6 +30,7 @@ void TetrisGame::start() {
     resetBoard();
     gameOver = false;
     score = 0;
+    level = 1;
     fallSpeed = 1000;
     heldPiece = -1;
     hasHeldThisTurn = false;
@@ -126,6 +127,7 @@ void TetrisGame::clearLines() {
     if (linesCleared > 0) {
         score += linesCleared * 100;
         fallSpeed = max((unsigned long)150, fallSpeed - 50); // Speed up
+        level = 1 + ((1000 - fallSpeed) / 50);
         Sound::playSFX("/clash.wav"); // Clear sound
     }
 }
@@ -340,20 +342,25 @@ void TetrisGame::draw() {
     Display::backbuffer.setCursor(10, 65);
     Display::backbuffer.println(score);
 
+    Display::backbuffer.setCursor(10, 85);
+    Display::backbuffer.println("Level:");
+    Display::backbuffer.setCursor(10, 100);
+    Display::backbuffer.println(level);
+
     // Draw Hold Box
     Display::backbuffer.setTextSize(1);
-    Display::backbuffer.setCursor(10, 95);
+    Display::backbuffer.setCursor(10, 125);
     Display::backbuffer.println("HOLD:");
     
-    // Draw a small border box for hold
-    Display::backbuffer.drawRect(10, 110, 48, 48, TFT_DARKGREY);
+    // Draw a small border box for hold a bit lower
+    Display::backbuffer.drawRect(10, 140, 48, 48, TFT_DARKGREY);
     
     if (heldPiece != -1) {
         uint16_t shape = SHAPES[heldPiece][0]; // Draw default rotation
         
         // Center the 4x4 grid (32x32 pixels) inside the 48x48 box
         int startX = 18;
-        int startY = 118;
+        int startY = 148;
         
         for (int i = 0; i < 16; i++) {
             if (shape & (0x8000 >> i)) {
@@ -363,6 +370,24 @@ void TetrisGame::draw() {
             }
         }
     }
+
+    // Draw controls help text on the right side of the board
+    Display::backbuffer.setTextColor(TFT_WHITE, TFT_BLACK);
+    Display::backbuffer.setTextSize(1);
+    Display::backbuffer.setCursor(230, 20);
+    Display::backbuffer.println("Controls:");
+    Display::backbuffer.setCursor(230, 35);
+    Display::backbuffer.println("U: Drop");
+    Display::backbuffer.setCursor(230, 45);
+    Display::backbuffer.println("L/R: Move");
+    Display::backbuffer.setCursor(230, 55);
+    Display::backbuffer.println("D: Down");
+    Display::backbuffer.setCursor(230, 65);
+    Display::backbuffer.println("A/B: Rot");
+    Display::backbuffer.setCursor(230, 75);
+    Display::backbuffer.println("SEL: Hold");
+    Display::backbuffer.setCursor(230, 85);
+    Display::backbuffer.println("SEL+ST: Menu");
 
     if (gameOver) {
         Display::backbuffer.setTextColor(TFT_RED, TFT_BLACK);

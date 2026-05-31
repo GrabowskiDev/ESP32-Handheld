@@ -17,6 +17,7 @@ private:
     int pieceY;
 
     uint32_t score;
+    int level;
     bool gameOver;
     unsigned long lastFallTime;
     unsigned long fallSpeed;
