@@ -42,7 +42,7 @@ void TetrisGame::start() {
 
     Serial.println("Tetris Game Started!");
     // Optional: play an initial bootup sound
-    Sound::playSFX("/clash.wav");
+    Sound::playSFX("/impact.wav");
 }
 
 void TetrisGame::resetBoard() {
@@ -61,7 +61,7 @@ void TetrisGame::spawnPiece() {
 
     if (checkCollision(pieceX, pieceY, currentRotation)) {
         gameOver = true;
-        Sound::playSFX("/clash.wav"); // Game over sound
+        Sound::playSFX("/impact.wav"); // Game over sound
     }
 }
 
@@ -91,7 +91,7 @@ void TetrisGame::lockPiece() {
         }
     }
     
-    Sound::playSFX("/swing.wav"); // Lock sound
+    Sound::playSFX("/move.wav"); // Lock sound
     clearLines();
     hasHeldThisTurn = false;
     spawnPiece();
@@ -128,7 +128,7 @@ void TetrisGame::clearLines() {
         score += linesCleared * 100;
         fallSpeed = max((unsigned long)150, fallSpeed - 50); // Speed up
         level = 1 + ((1000 - fallSpeed) / 50);
-        Sound::playSFX("/clash.wav"); // Clear sound
+        Sound::playSFX("/impact.wav"); // Clear sound
     }
 }
 
@@ -192,7 +192,7 @@ void TetrisGame::update() {
         int newRot = (currentRotation + 1) % 4;
         if (!checkCollision(pieceX, pieceY, newRot)) {
             currentRotation = newRot;
-            Sound::playSFX("/swing.wav");
+            Sound::playSFX("/move.wav");
         }
     }
     // Rotate Counter-Clockwise with B
@@ -200,7 +200,7 @@ void TetrisGame::update() {
         int newRot = (currentRotation + 3) % 4;
         if (!checkCollision(pieceX, pieceY, newRot)) {
             currentRotation = newRot;
-            Sound::playSFX("/swing.wav");
+            Sound::playSFX("/move.wav");
         }
     }
     // Hard Drop with UP
@@ -215,7 +215,7 @@ void TetrisGame::update() {
     // Hold piece mechanic with SELECT
     if (Buttons::justPressed(BTN_SELECT)) {
         if (!hasHeldThisTurn) {
-            Sound::playSFX("/ignite.wav"); // Swap sound
+            Sound::playSFX("/confirm.wav"); // Swap sound
             
             int temp = currentPiece;
             if (heldPiece == -1) {
@@ -242,7 +242,7 @@ void TetrisGame::update() {
                     
                     if (!foundSafe) {
                         gameOver = true;
-                        Sound::playSFX("/clash.wav");
+                        Sound::playSFX("/impact.wav");
                     }
                 }
             }

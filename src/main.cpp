@@ -38,9 +38,14 @@ void loop() {
     if (gameManager.getCurrentGame() && !gameManager.getCurrentGame()->isMainMenu()) {
         if (Buttons::isPressed(BTN_SELECT) && Buttons::isPressed(BTN_START)) {
             Serial.println("Shortcut triggered: Returning to Main Menu.");
-            Sound::playSFX("/extinguish.wav");
+            Sound::playSFX("/back.wav");
             gameManager.switchGame(new MainMenu());
-            delay(300); // Debounce to prevent immediate double-triggers
+            
+            // Wait until both buttons are released to prevent menu carryover
+            while (Buttons::isPressed(BTN_SELECT) || Buttons::isPressed(BTN_START)) {
+                delay(10);
+                Buttons::update();
+            }
         }
     }
 
