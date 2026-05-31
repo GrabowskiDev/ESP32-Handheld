@@ -36,6 +36,7 @@ void TetrisGame::start() {
     lastFallTime = millis();
     lastLeftMoveTime = 0;
     lastRightMoveTime = 0;
+    lastDownMoveTime = 0;
     spawnPiece();
 
     Serial.println("Tetris Game Started!");
@@ -167,11 +168,22 @@ void TetrisGame::update() {
             lastRightMoveTime = millis() + 150; // 150ms repeat interval (controlled slide speed)
         }
     }
+
+    // Down Movement with Autorepeat (DAS)
     if (Buttons::justPressed(BTN_DOWN)) {
         if (!checkCollision(pieceX, pieceY + 1, currentRotation)) {
             pieceY++;
         }
+        lastDownMoveTime = millis() + 250; // 250ms initial hold delay
         lastFallTime = millis(); // Reset fall timer
+    } else if (Buttons::isPressed(BTN_DOWN)) {
+        if (millis() >= lastDownMoveTime) {
+            if (!checkCollision(pieceX, pieceY + 1, currentRotation)) {
+                pieceY++;
+                lastFallTime = millis(); // Reset fall timer after repeated move
+            }
+            lastDownMoveTime = millis() + 150; // 150ms repeat interval
+        }
     }
     // Rotate Clockwise with A
     if (Buttons::justPressed(BTN_A)) {
@@ -210,38 +222,23 @@ void TetrisGame::update() {
             } else {
                 currentPiece = heldPiece;
                 heldPiece = temp;
+                currentRotation = 0;
+                pieceY = 0;
                 
-                // Spawn at the position of the old piece, taking borders/blocks into account
-                int targetX = pieceX;
-                int targetY = pieceY;
-                int targetRot = currentRotation;
-                bool foundSafe = false;
-                
-                // Boundary offset checks: prefer centered, then slight shifts (shifting up avoids locked pile below)
-                int offsetsX[] = {0, -1, 1, -2, 2};
-                int offsetsY[] = {0, -1, -2, 1, -3};
-                
-                for (int yOff : offsetsY) {
+                // Check if current position collides, if so try to shift left/right
+                if (checkCollision(pieceX, pieceY, currentRotation)) {
+                    bool foundSafe = false;
+                    int offsetsX[] = {0, -1, -2, 1, 2, -3, 3};
+                    
                     for (int xOff : offsetsX) {
-                        if (!checkCollision(targetX + xOff, targetY + yOff, targetRot)) {
-                            targetX += xOff;
-                            targetY += yOff;
+                        if (!checkCollision(pieceX + xOff, pieceY, currentRotation)) {
+                            pieceX += xOff;
                             foundSafe = true;
                             break;
                         }
                     }
-                    if (foundSafe) break;
-                }
-                
-                if (foundSafe) {
-                    pieceX = targetX;
-                    pieceY = targetY;
-                } else {
-                    // Fallback to top-center if entirely blocked
-                    pieceX = 3;
-                    pieceY = 0;
-                    currentRotation = 0;
-                    if (checkCollision(pieceX, pieceY, currentRotation)) {
+                    
+                    if (!foundSafe) {
                         gameOver = true;
                         Sound::playSFX("/clash.wav");
                     }
