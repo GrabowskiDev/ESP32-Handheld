@@ -95,6 +95,28 @@ void loop() {
 ### Aplikacja systemowa - `MainMenu` (`src/games/MainMenu.cpp`)
 Aplikacja Menu (dziedzicząca po `IGame`) pozwala na nawigację po dostępnej liście wbudowanych gier. Odczytuje wychylenia "krzyżaka" zmieniając zaznaczenie listy w `update()`, oraz rysuje interfejs w `draw()`. Zatwierdzenie wyboru powoduje stworzenie nowego obiektu wybranej gry (np. `new TetrisGame()`) i wymuszenie jego załadowania przez `GameManager`.
 
+### Abstrakcja komponentów fizycznych (`hardware/`)
+
+Aby oddzielić logikę gier od szczegółów technicznych mikrokontrolera ESP32, stworzono warstwę abstrakcji sprzętowej (HAL). Znajduje się ona w katalogach `include/hardware` oraz `src/hardware` i dzieli się na trzy główne moduły:
+
+#### 1. Wyświetlacz – `Display` (`include/hardware/display.h`, `src/hardware/display.cpp`)
+Przestrzeń nazw `Display` odpowiada za niskopoziomowe zarządzanie ekranem TFT opartym o bibliotekę `TFT_eSPI`. Kluczowe rozwiązania obejmują:
+* **Podwójne buforowanie (Double Buffering):** Aby wyeliminować efekt migotania (flicker) podczas dynamicznego rysowania klatek, zaimplementowano buforowanie w pamięci RAM mikrokontrolera za pomocą klasy `TFT_eSprite`. Gry rysują bezpośrednio na buforze (`backbuffer`), a gotowy obraz jest kopiowany na fizyczny wyświetlacz jednorazowo w pętli głównej programu metodą `Display::update()`.
+* **Regulacja jasności:** Za pomocą pinu GPIO 8 kontrolowana jest jasność podświetlenia ekranu. Wykorzystano sygnał PWM (`analogWrite`), mapując procentową jasność (10-100%) na wypełnienie sygnału (25-255).
+
+#### 2. Klawiatura i przyciski – `Buttons` (`include/hardware/buttons.h`, `src/hardware/buttons.cpp`)
+Obsługa interfejsu wejścia została zamknięta w przestrzeni nazw `Buttons`. Zapewnia ona:
+* **Wbudowany programowy Debouncing:** Stan każdego przycisku jest próbkowany z uwzględnieniem histerezy czasowej (15 ms), co zapobiega powielaniu naciśnięć wywołanych drganiami styków fizycznego przełącznika.
+* **Rozpoznawanie zdarzeń przejściowych:** Oprócz standardowego sprawdzenia `isPressed()`, moduł udostępnia metody `justPressed()` (wykrycie momentu wciśnięcia) oraz `justReleased()` (wykrycie momentu zwolnienia). Pozwala to na precyzyjną obsługę menu (gdzie jedno wciśnięcie powinno przesunąć kursor o tylko jedną pozycję) oraz gier zręcznościowych.
+* **Konfigurację pinów:** Wszystkie przyciski korzystają z wewnętrznych rezystorów podciągających (`INPUT_PULLUP`), przez co wciśnięcie przycisku zwiera styk do masy (stan niski `LOW`).
+
+#### 3. System audio – `Sound` (`include/hardware/sound.h`, `src/hardware/sound.cpp`)
+Odtwarzanie efektów dźwiękowych oraz muzyki w tle (BGM) wymaga odpowiedniej wydajności i płynnego przesyłu danych. Zrealizowano to w sposób asynchroniczny:
+* **Wykorzystanie FreeRTOS:** Dźwięk jest dekodowany i miksowany w dedykowanym zadaniu FreeRTOS (`SoundTask`), które jest przypisane do rdzenia 0 procesora ESP32 (logika gier i grafika działają na rdzeniu 1). Zapobiega to spowolnieniom gry (lagom) wywołanym odczytem plików z pamięci flash SPIFFS.
+* **Kolejkowanie poleceń (Command Queue):** Komunikacja pomiędzy grą (rdzeń 1) a zadaniem dźwiękowym (rdzeń 0) odbywa się za pomocą bezpiecznej wątkowo kolejki FreeRTOS (`soundQueue`). Gra wysyła polecenia typu `playBGM`, `stopBGM` czy `playSFX`.
+* **Mikser programowy:** System potrafi odtwarzać jednocześnie muzykę w tle (BGM) oraz nakładać na nią efekty dźwiękowe (SFX). Próbki z dwóch plików WAV (odczytywanych ze SPIFFS) są sumowane z uwzględnieniem głośności globalnej oraz zabezpieczone przed przesterowaniem (obcinanie wartości powyżej zakresu 16-bitowego za pomocą pomocniczej funkcji `clipAudio`).
+* **Interfejs I2S:** Cyfrowe próbki audio są przesyłane bezpośrednio do zewnętrznego wzmacniacza MAX98357A poprzez magistralę I2S.
+
 ## 4. Przykładowa implementacja gry: Tetris
 
 Znakomitym przykładem wykorzystania przygotowanej architektury jest działająca na konsoli gra **Tetris** (`src/games/TetrisGame.cpp`). W jej kodzie zastosowano kilka zoptymalizowanych zabiegów przydatnych w programowaniu mikrokontrolerów:
