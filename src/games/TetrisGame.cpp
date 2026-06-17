@@ -30,17 +30,19 @@ void TetrisGame::start() {
     resetBoard();
     gameOver = false;
     score = 0;
+    level = 1;
     fallSpeed = 1000;
     heldPiece = -1;
     hasHeldThisTurn = false;
     lastFallTime = millis();
     lastLeftMoveTime = 0;
     lastRightMoveTime = 0;
+    lastDownMoveTime = 0;
     spawnPiece();
 
     Serial.println("Tetris Game Started!");
     // Optional: play an initial bootup sound
-    Sound::playSFX("/clash.wav");
+    Sound::playSFX("/impact.wav");
 }
 
 void TetrisGame::resetBoard() {
@@ -59,7 +61,7 @@ void TetrisGame::spawnPiece() {
 
     if (checkCollision(pieceX, pieceY, currentRotation)) {
         gameOver = true;
-        Sound::playSFX("/clash.wav"); // Game over sound
+        Sound::playSFX("/impact.wav"); // Game over sound
     }
 }
 
@@ -89,7 +91,7 @@ void TetrisGame::lockPiece() {
         }
     }
     
-    Sound::playSFX("/swing.wav"); // Lock sound
+    Sound::playSFX("/move.wav"); // Lock sound
     clearLines();
     hasHeldThisTurn = false;
     spawnPiece();
@@ -125,7 +127,8 @@ void TetrisGame::clearLines() {
     if (linesCleared > 0) {
         score += linesCleared * 100;
         fallSpeed = max((unsigned long)150, fallSpeed - 50); // Speed up
-        Sound::playSFX("/clash.wav"); // Clear sound
+        level = 1 + ((1000 - fallSpeed) / 50);
+        Sound::playSFX("/impact.wav"); // Clear sound
     }
 }
 
@@ -167,18 +170,29 @@ void TetrisGame::update() {
             lastRightMoveTime = millis() + 150; // 150ms repeat interval (controlled slide speed)
         }
     }
+
+    // Down Movement with Autorepeat (DAS)
     if (Buttons::justPressed(BTN_DOWN)) {
         if (!checkCollision(pieceX, pieceY + 1, currentRotation)) {
             pieceY++;
         }
+        lastDownMoveTime = millis() + 250; // 250ms initial hold delay
         lastFallTime = millis(); // Reset fall timer
+    } else if (Buttons::isPressed(BTN_DOWN)) {
+        if (millis() >= lastDownMoveTime) {
+            if (!checkCollision(pieceX, pieceY + 1, currentRotation)) {
+                pieceY++;
+                lastFallTime = millis(); // Reset fall timer after repeated move
+            }
+            lastDownMoveTime = millis() + 150; // 150ms repeat interval
+        }
     }
     // Rotate Clockwise with A
     if (Buttons::justPressed(BTN_A)) {
         int newRot = (currentRotation + 1) % 4;
         if (!checkCollision(pieceX, pieceY, newRot)) {
             currentRotation = newRot;
-            Sound::playSFX("/swing.wav");
+            Sound::playSFX("/move.wav");
         }
     }
     // Rotate Counter-Clockwise with B
@@ -186,7 +200,7 @@ void TetrisGame::update() {
         int newRot = (currentRotation + 3) % 4;
         if (!checkCollision(pieceX, pieceY, newRot)) {
             currentRotation = newRot;
-            Sound::playSFX("/swing.wav");
+            Sound::playSFX("/move.wav");
         }
     }
     // Hard Drop with UP
@@ -201,7 +215,7 @@ void TetrisGame::update() {
     // Hold piece mechanic with SELECT
     if (Buttons::justPressed(BTN_SELECT)) {
         if (!hasHeldThisTurn) {
-            Sound::playSFX("/ignite.wav"); // Swap sound
+            Sound::playSFX("/confirm.wav"); // Swap sound
             
             int temp = currentPiece;
             if (heldPiece == -1) {
@@ -210,40 +224,25 @@ void TetrisGame::update() {
             } else {
                 currentPiece = heldPiece;
                 heldPiece = temp;
+                currentRotation = 0;
+                pieceY = 0;
                 
-                // Spawn at the position of the old piece, taking borders/blocks into account
-                int targetX = pieceX;
-                int targetY = pieceY;
-                int targetRot = currentRotation;
-                bool foundSafe = false;
-                
-                // Boundary offset checks: prefer centered, then slight shifts (shifting up avoids locked pile below)
-                int offsetsX[] = {0, -1, 1, -2, 2};
-                int offsetsY[] = {0, -1, -2, 1, -3};
-                
-                for (int yOff : offsetsY) {
+                // Check if current position collides, if so try to shift left/right
+                if (checkCollision(pieceX, pieceY, currentRotation)) {
+                    bool foundSafe = false;
+                    int offsetsX[] = {0, -1, -2, 1, 2, -3, 3};
+                    
                     for (int xOff : offsetsX) {
-                        if (!checkCollision(targetX + xOff, targetY + yOff, targetRot)) {
-                            targetX += xOff;
-                            targetY += yOff;
+                        if (!checkCollision(pieceX + xOff, pieceY, currentRotation)) {
+                            pieceX += xOff;
                             foundSafe = true;
                             break;
                         }
                     }
-                    if (foundSafe) break;
-                }
-                
-                if (foundSafe) {
-                    pieceX = targetX;
-                    pieceY = targetY;
-                } else {
-                    // Fallback to top-center if entirely blocked
-                    pieceX = 3;
-                    pieceY = 0;
-                    currentRotation = 0;
-                    if (checkCollision(pieceX, pieceY, currentRotation)) {
+                    
+                    if (!foundSafe) {
                         gameOver = true;
-                        Sound::playSFX("/clash.wav");
+                        Sound::playSFX("/impact.wav");
                     }
                 }
             }
@@ -343,20 +342,25 @@ void TetrisGame::draw() {
     Display::backbuffer.setCursor(10, 65);
     Display::backbuffer.println(score);
 
+    Display::backbuffer.setCursor(10, 85);
+    Display::backbuffer.println("Level:");
+    Display::backbuffer.setCursor(10, 100);
+    Display::backbuffer.println(level);
+
     // Draw Hold Box
     Display::backbuffer.setTextSize(1);
-    Display::backbuffer.setCursor(10, 95);
+    Display::backbuffer.setCursor(10, 125);
     Display::backbuffer.println("HOLD:");
     
-    // Draw a small border box for hold
-    Display::backbuffer.drawRect(10, 110, 48, 48, TFT_DARKGREY);
+    // Draw a small border box for hold a bit lower
+    Display::backbuffer.drawRect(10, 140, 48, 48, TFT_DARKGREY);
     
     if (heldPiece != -1) {
         uint16_t shape = SHAPES[heldPiece][0]; // Draw default rotation
         
         // Center the 4x4 grid (32x32 pixels) inside the 48x48 box
         int startX = 18;
-        int startY = 118;
+        int startY = 148;
         
         for (int i = 0; i < 16; i++) {
             if (shape & (0x8000 >> i)) {
@@ -366,6 +370,24 @@ void TetrisGame::draw() {
             }
         }
     }
+
+    // Draw controls help text on the right side of the board
+    Display::backbuffer.setTextColor(TFT_WHITE, TFT_BLACK);
+    Display::backbuffer.setTextSize(1);
+    Display::backbuffer.setCursor(230, 20);
+    Display::backbuffer.println("Controls:");
+    Display::backbuffer.setCursor(230, 35);
+    Display::backbuffer.println("U: Drop");
+    Display::backbuffer.setCursor(230, 45);
+    Display::backbuffer.println("L/R: Move");
+    Display::backbuffer.setCursor(230, 55);
+    Display::backbuffer.println("D: Down");
+    Display::backbuffer.setCursor(230, 65);
+    Display::backbuffer.println("A/B: Rot");
+    Display::backbuffer.setCursor(230, 75);
+    Display::backbuffer.println("SEL: Hold");
+    Display::backbuffer.setCursor(230, 85);
+    Display::backbuffer.println("SEL+ST: Menu");
 
     if (gameOver) {
         Display::backbuffer.setTextColor(TFT_RED, TFT_BLACK);

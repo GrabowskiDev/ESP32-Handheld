@@ -17,6 +17,7 @@ bool isBgmPlaying = false;
 bool isSfxPlaying = false;
 bool loopBgm = false;
 char currentBgmFilename[32] = {0};
+static volatile int soundVolume = 80;
 
 void Sound::setup() {
     // Mount SPIFFS
@@ -110,6 +111,7 @@ void soundTask(void* pvParameters) {
 
         // Process BGM chunk
         if (isBgmPlaying && bgmFile) {
+            float vol = soundVolume / 100.0f;
             int bytesPerFrame = (bgm_header.num_channels == 1) ? 2 : 4;
             int toRead = FRAMES_PER_CHUNK * bytesPerFrame;
             uint8_t readBuf[FRAMES_PER_CHUNK * 4];
@@ -134,8 +136,8 @@ void soundTask(void* pvParameters) {
                         sampleRight = *((int16_t*)(readBuf + bufIdx));
                         bufIdx += 2;
                     }
-                    mixFrames[i].left = sampleLeft;
-                    mixFrames[i].right = sampleRight;
+                    mixFrames[i].left = (int16_t)(sampleLeft * vol);
+                    mixFrames[i].right = (int16_t)(sampleRight * vol);
                 }
                 hasAudio = true;
             }
@@ -143,6 +145,7 @@ void soundTask(void* pvParameters) {
 
         // Process SFX chunk and Mix
         if (isSfxPlaying && sfxFile) {
+            float vol = soundVolume / 100.0f;
             int bytesPerFrame = (sfx_header.num_channels == 1) ? 2 : 4;
             int toRead = FRAMES_PER_CHUNK * bytesPerFrame;
             uint8_t readBuf[FRAMES_PER_CHUNK * 4];
@@ -164,8 +167,8 @@ void soundTask(void* pvParameters) {
                         bufIdx += 2;
                     }
                     // Mix samples directly by adding and clipping
-                    mixFrames[i].left = clipAudio((int32_t)mixFrames[i].left + (int32_t)sampleLeft);
-                    mixFrames[i].right = clipAudio((int32_t)mixFrames[i].right + (int32_t)sampleRight);
+                    mixFrames[i].left = clipAudio((int32_t)mixFrames[i].left + (int32_t)(sampleLeft * vol));
+                    mixFrames[i].right = clipAudio((int32_t)mixFrames[i].right + (int32_t)(sampleRight * vol));
                 }
                 hasAudio = true;
             }
@@ -212,4 +215,14 @@ void Sound::playSFX(const char* filename) {
         strncpy(cmd.filename, filename, 31);
         xQueueSend(soundQueue, &cmd, 0);
     }
+}
+
+int Sound::getVolume() {
+    return soundVolume;
+}
+
+void Sound::setVolume(int volume) {
+    if (volume < 0) volume = 0;
+    if (volume > 100) volume = 100;
+    soundVolume = volume;
 }

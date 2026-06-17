@@ -23,7 +23,7 @@ void ExampleGame::update() {
 
     if (Buttons::justPressed(BTN_A)) {
         playerColor = TFT_RED;
-        Sound::playSFX("/swing.wav"); 
+        Sound::playSFX("/move.wav"); 
         Serial.println("ExampleGame: Action A!");
     }
     
@@ -32,7 +32,7 @@ void ExampleGame::update() {
     }
 
     if (Buttons::justPressed(BTN_B)) {
-        Sound::playSFX("/clash.wav"); 
+        Sound::playSFX("/impact.wav"); 
         Serial.println("ExampleGame: Action B!");
     }
 

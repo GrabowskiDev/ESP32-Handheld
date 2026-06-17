@@ -19,7 +19,7 @@ void MainMenu::start() {
     
     // Play background menu music
     if (bgmEnabled) {
-        Sound::playBGM("/hum.wav", true);
+        Sound::playBGM("/menu_bgm.wav", true);
     } else {
         Sound::stopBGM();
     }
@@ -55,15 +55,15 @@ void MainMenu::updateMainMenu() {
 
     if (Buttons::justPressed(BTN_DOWN)) {
         selectedItem = (selectedItem + 1) % 3;
-        Sound::playSFX("/swing.wav");
+        Sound::playSFX("/move.wav");
     }
     if (Buttons::justPressed(BTN_UP)) {
         selectedItem = (selectedItem + 2) % 3; // equivalent to -1
-        Sound::playSFX("/swing.wav");
+        Sound::playSFX("/move.wav");
     }
     
     if (Buttons::justPressed(BTN_A) || Buttons::justPressed(BTN_START)) {
-        Sound::playSFX("/ignite.wav");
+        Sound::playSFX("/confirm.wav");
         delay(150); // Let sound start playing before switching context
         
         if (selectedItem == 0) {
@@ -86,12 +86,12 @@ void MainMenu::updateSettingsMenu() {
     }
 
     if (Buttons::justPressed(BTN_DOWN)) {
-        settingsCursor = (settingsCursor + 1) % 3;
-        Sound::playSFX("/swing.wav");
+        settingsCursor = (settingsCursor + 1) % 4;
+        Sound::playSFX("/move.wav");
     }
     if (Buttons::justPressed(BTN_UP)) {
-        settingsCursor = (settingsCursor + 2) % 3; // equivalent to -1
-        Sound::playSFX("/swing.wav");
+        settingsCursor = (settingsCursor + 3) % 4; // equivalent to -1
+        Sound::playSFX("/move.wav");
     }
     
     // Adjust brightness on item 0 using D-pad LEFT/RIGHT with smooth autorepeat
@@ -100,14 +100,14 @@ void MainMenu::updateSettingsMenu() {
             int p = Display::getBrightness() - 5;
             if (p < 10) p = 10;
             Display::setBrightness(p);
-            Sound::playSFX("/swing.wav");
+            Sound::playSFX("/move.wav");
             lastAdjustTime = millis() + 150; // 150ms initial hold delay
         } else if (Buttons::isPressed(BTN_LEFT)) {
             if (millis() >= lastAdjustTime) {
                 int p = Display::getBrightness() - 5;
                 if (p < 10) p = 10;
                 Display::setBrightness(p);
-                Sound::playSFX("/swing.wav");
+                Sound::playSFX("/move.wav");
                 lastAdjustTime = millis() + 40; // 40ms repeat interval
             }
         }
@@ -116,29 +116,64 @@ void MainMenu::updateSettingsMenu() {
             int p = Display::getBrightness() + 5;
             if (p > 100) p = 100;
             Display::setBrightness(p);
-            Sound::playSFX("/swing.wav");
+            Sound::playSFX("/move.wav");
             lastAdjustTime = millis() + 150; // 150ms initial hold delay
         } else if (Buttons::isPressed(BTN_RIGHT)) {
             if (millis() >= lastAdjustTime) {
                 int p = Display::getBrightness() + 5;
                 if (p > 100) p = 100;
                 Display::setBrightness(p);
-                Sound::playSFX("/swing.wav");
+                Sound::playSFX("/move.wav");
+                lastAdjustTime = millis() + 40; // 40ms repeat interval
+            }
+        }
+    }
+
+    // Adjust volume on item 1 using D-pad LEFT/RIGHT with smooth autorepeat
+    if (settingsCursor == 1) {
+        if (Buttons::justPressed(BTN_LEFT)) {
+            int v = Sound::getVolume() - 5;
+            if (v < 0) v = 0;
+            Sound::setVolume(v);
+            Sound::playSFX("/move.wav");
+            lastAdjustTime = millis() + 150; // 150ms initial hold delay
+        } else if (Buttons::isPressed(BTN_LEFT)) {
+            if (millis() >= lastAdjustTime) {
+                int v = Sound::getVolume() - 5;
+                if (v < 0) v = 0;
+                Sound::setVolume(v);
+                Sound::playSFX("/move.wav");
+                lastAdjustTime = millis() + 40; // 40ms repeat interval
+            }
+        }
+        
+        if (Buttons::justPressed(BTN_RIGHT)) {
+            int v = Sound::getVolume() + 5;
+            if (v > 100) v = 100;
+            Sound::setVolume(v);
+            Sound::playSFX("/move.wav");
+            lastAdjustTime = millis() + 150; // 150ms initial hold delay
+        } else if (Buttons::isPressed(BTN_RIGHT)) {
+            if (millis() >= lastAdjustTime) {
+                int v = Sound::getVolume() + 5;
+                if (v > 100) v = 100;
+                Sound::setVolume(v);
+                Sound::playSFX("/move.wav");
                 lastAdjustTime = millis() + 40; // 40ms repeat interval
             }
         }
     }
     
     if (Buttons::justPressed(BTN_A) || Buttons::justPressed(BTN_START)) {
-        Sound::playSFX("/ignite.wav");
-        if (settingsCursor == 1) {
+        Sound::playSFX("/confirm.wav");
+        if (settingsCursor == 2) {
             bgmEnabled = !bgmEnabled;
             if (bgmEnabled) {
-                Sound::playBGM("/hum.wav", true);
+                Sound::playBGM("/menu_bgm.wav", true);
             } else {
                 Sound::stopBGM();
             }
-        } else if (settingsCursor == 2) {
+        } else if (settingsCursor == 3) {
             activeScreen = SCREEN_MAIN;
             selectedItem = 2; // Keep highlight on "Settings"
             startMillis = millis(); // Reset grace period returning to main menu
@@ -146,7 +181,7 @@ void MainMenu::updateSettingsMenu() {
     }
     
     if (Buttons::justPressed(BTN_B) || Buttons::justPressed(BTN_SELECT)) {
-        Sound::playSFX("/extinguish.wav");
+        Sound::playSFX("/back.wav");
         activeScreen = SCREEN_MAIN;
         selectedItem = 2;
         startMillis = millis(); // Reset grace period returning to main menu
@@ -282,7 +317,7 @@ void MainMenu::drawSettingsMenu() {
     Display::backbuffer.drawFastHLine(15, 38, 290, TFT_YELLOW);
     
     // 2. Settings Items
-    int startY = 48;
+    int startY = 43;
     
     // Setting 1: Display Brightness
     bool isBrightSelected = (settingsCursor == 0);
@@ -317,10 +352,42 @@ void MainMenu::drawSettingsMenu() {
     // Percentage text
     Display::backbuffer.setCursor(245, startY + 4);
     Display::backbuffer.printf("%3d%%", percent);
+ 
+    // Setting 2: Sound Volume
+    int volY = startY + 23;
+    bool isVolSelected = (settingsCursor == 1);
+    if (isVolSelected) {
+        Display::backbuffer.fillRoundRect(15, volY - 4, 290, 24, 3, TFT_NAVY);
+        Display::backbuffer.drawRoundRect(15, volY - 4, 290, 24, 3, TFT_CYAN);
+        Display::backbuffer.setTextColor(TFT_WHITE, TFT_NAVY);
+    } else {
+        Display::backbuffer.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    }
+    Display::backbuffer.setCursor(25, volY + 4);
+    Display::backbuffer.print("Sound Vol:");
+    
+    // Draw graphical slider for volume
+    int volPercent = Sound::getVolume();
+    int volSliderX = 130;
+    int volSliderY = volY + 8;
+    int volSliderW = 100;
+    int volSliderH = 4;
+    
+    // Slider track
+    Display::backbuffer.fillRect(volSliderX, volSliderY, volSliderW, volSliderH, TFT_DARKGREY);
+    // Filled progress
+    int volProgressW = (volPercent * volSliderW) / 100;
+    Display::backbuffer.fillRect(volSliderX, volSliderY, volProgressW, volSliderH, isVolSelected ? TFT_CYAN : TFT_LIGHTGREY);
+    // Slider handle
+    Display::backbuffer.fillRect(volSliderX + volProgressW - 3, volSliderY - 3, 6, 10, TFT_WHITE);
+    
+    // Percentage text
+    Display::backbuffer.setCursor(245, volY + 4);
+    Display::backbuffer.printf("%3d%%", volPercent);
 
-    // Setting 2: BGM Mute
-    int bgmY = startY + 28;
-    bool isBgmSelected = (settingsCursor == 1);
+    // Setting 3: BGM Mute
+    int bgmY = volY + 23;
+    bool isBgmSelected = (settingsCursor == 2);
     if (isBgmSelected) {
         Display::backbuffer.fillRoundRect(15, bgmY - 4, 290, 24, 3, TFT_NAVY);
         Display::backbuffer.drawRoundRect(15, bgmY - 4, 290, 24, 3, TFT_CYAN);
@@ -331,9 +398,9 @@ void MainMenu::drawSettingsMenu() {
     Display::backbuffer.setCursor(25, bgmY + 4);
     Display::backbuffer.printf("Background Music: %s", bgmEnabled ? "PLAYING [ON]" : "MUTED  [OFF]");
     
-    // Setting 3: Back to Main Menu
-    int backY = bgmY + 28;
-    bool isBackSelected = (settingsCursor == 2);
+    // Setting 4: Back to Main Menu
+    int backY = bgmY + 23;
+    bool isBackSelected = (settingsCursor == 3);
     if (isBackSelected) {
         Display::backbuffer.fillRoundRect(15, backY - 4, 290, 24, 3, TFT_NAVY);
         Display::backbuffer.drawRoundRect(15, backY - 4, 290, 24, 3, TFT_CYAN);

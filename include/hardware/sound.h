@@ -53,4 +53,8 @@ namespace Sound {
     
     // Play a sound effect over the background music
     void playSFX(const char* filename);
+
+    // Get and set sound volume (0-100)
+    int getVolume();
+    void setVolume(int volume);
 }
