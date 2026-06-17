@@ -3,6 +3,8 @@
 ## 1. Wstęp
 Projekt **ESP32-Handheld** to przenośna konsola do gier w stylu klasycznego GameBoya. Celem projektu jest stworzenie platformy pozwalającej na uruchamianie prostych gier i aplikacji napisanych w języku C++. Całość opiera się o architekturę mikrokontrolera ESP32, co zapewnia wystarczającą moc obliczeniową do płynnej obsługi kolorowego wyświetlacza, interfejsu przycisków oraz odtwarzania dźwięku.
 
+![Zdjęcie urządzenia](device.JPG)
+
 ### Wykorzystane komponenty i technologie:
 * **Mikrokontroler:** ESP32-S3-DEV-KIT-N8R8 - główne serce układu, odpowiedzialne za wykonywanie logiki gier oraz komunikację i sterowanie sprzętem.
 * **Oprogramowanie i Język:** Cały kod napisany jest w **C++**, z wykorzystaniem frameworka **Arduino** i wbudowany na platformie deweloperskiej **PlatformIO**.
@@ -12,7 +14,10 @@ Projekt **ESP32-Handheld** to przenośna konsola do gier w stylu klasycznego Gam
 * **Interfejs użytkownika:** Autorska "button board" (płytka przycisków), na której znajduje się układ sterowania kierunkowego (góra, dół, lewo, prawo) oraz klasyczne przyciski funkcyjne: A, B, Start i Select.
 
 ## 2. Schemat
-Architektura sprzętowa projektu, zgodnie z dołączonym do niego schematem, dzieli się na kilka współpracujących ze sobą, lecz funkcjonalnie niezależnych systemów. Punktem zbiorczym dla całości jest mikrokontroler ESP32:
+
+![Schemat komponentów](schemat.png)
+
+Architektura sprzętowa projektu, zgodnie z powyższym schematem, dzieli się na kilka współpracujących ze sobą, lecz funkcjonalnie niezależnych systemów. Punktem zbiorczym dla całości jest mikrokontroler ESP32:
 * **System zasilania (Power):** Obwód zapewniający stałe i bezpieczne zasilanie dla elektroniki. Napięcie z akumulatora przechodzi przez układ ładujący (TP4056), główny włącznik zasilania (Switch) i przetwornicę 5V, by na końcu zasilić układ ESP32.
 * **Wyświetlacz (Display):** Podłączony do pinów mikrokontrolera przeznaczonych dla protokołu SPI, co umożliwia wysyłanie klatek wideo z dużą prędkością.
 * **System dźwiękowy (Audio System):** Wykorzystuje specjalistyczne piny I2S w mikrokontrolerze ESP32, aby wysyłać strumień dźwięku (audio cyfrowe) do zewnętrznego wzmacniacza sygnału przed wyprowadzeniem go na głośnik.
