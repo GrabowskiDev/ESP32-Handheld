@@ -1,23 +1,25 @@
 # Sprawozdanie z projektu ESP32-Handheld
 
 ## 1. Wstęp
-Projekt **ESP32-Handheld** to przenośna konsola do gier w stylu klasycznego GameBoya. Celem projektu jest stworzenie platformy pozwalającej na uruchamianie prostych gier i aplikacji napisanych w języku C++. Całość opiera się o architekturę mikrokontrolera ESP32, co zapewnia wystarczającą moc obliczeniową do płynnej obsługi kolorowego wyświetlacza, interfejsu przycisków oraz odtwarzania dźwięku.
+Projekt **ESP32-Handheld** to przenośna konsola do gier w stylu klasycznego GameBoya. Celem projektu jest stworzenie platformy pozwalającej na uruchamianie prostych gier i aplikacji napisanych w języku C++. Całość opiera się o architekturę mikrokontrolera ESP32, co zapewnia wystarczającą moc obliczeniową do płynnej obsługi kolorowego wyświetlacza, interfejsu przycisków oraz odtwarzania dźwięku. Wygląd fizyczny zmontowanego urządzenia przedstawiono na **Rysunku 1**.
 
 ![Zdjęcie urządzenia](device.JPG)
+*Rysunek 1: Fizyczna postać gotowego urządzenia ESP32-Handheld.*
 
 ### Wykorzystane komponenty i technologie:
-* **Mikrokontroler:** ESP32-S3-DEV-KIT-N8R8 - główne serce układu, odpowiedzialne za wykonywanie logiki gier oraz komunikację i sterowanie sprzętem.
-* **Oprogramowanie i Język:** Cały kod napisany jest w **C++**, z wykorzystaniem frameworka **Arduino** i wbudowany na platformie deweloperskiej **PlatformIO**.
-* **Ekran:** Kolorowy wyświetlacz o rozdzielczości 240x320 pikseli komunikujący się z mikrokontrolerem po szybkiej magistrali SPI.
-* **System Audio:** Oparty o układ MAX98357A (wzmacniacz klasy D) wykorzystujący do komunikacji protokół I2S, podłączony do głośnika o impedancji 4Ω.
-* **Zasilanie:** Przenośność jest zapewniona dzięki wykorzystaniu akumulatora Li-Pol 2200mAh. Akumulator jest obsługiwany przez układ ładowania TP4056 i połączony z przetwornicą Step-Up (Boost), podnoszącą napięcie do 5V wymaganego przez system.
+* **Mikrokontroler:** ESP32-S3-DEV-KIT-N8R8 [1] – główne serce układu, odpowiedzialne za wykonywanie logiki gier oraz sterowanie podzespołami.
+* **Oprogramowanie i Język:** Cały kod napisany jest w języku **C++** z wykorzystaniem frameworka **Arduino** [4] oraz środowiska deweloperskiego **PlatformIO** [6].
+* **Ekran:** Kolorowy wyświetlacz o rozdzielczości 240x320 pikseli komunikujący się z mikrokontrolerem po szybkiej magistrali SPI przy użyciu biblioteki **TFT_eSPI** [3].
+* **System Audio:** Oparty o układ wzmacniacza cyfrowego I2S klasy D MAX98357A [2], podłączony do głośnika o impedancji 4Ω.
+* **Zasilanie:** Przenośność jest zapewniona dzięki wykorzystaniu akumulatora Li-Pol 2200mAh. Akumulator jest obsługiwany przez układ ładowania TP4056 [7] i połączony z przetwornicą Step-Up (Boost), podnoszącą napięcie do wymaganych 5V.
 * **Interfejs użytkownika:** Autorska "button board" (płytka przycisków), na której znajduje się układ sterowania kierunkowego (góra, dół, lewo, prawo) oraz klasyczne przyciski funkcyjne: A, B, Start i Select.
 
 ## 2. Schemat
 
 ![Schemat komponentów](schemat.png)
+*Rysunek 2: Schemat blokowy połączeń komponentów elektronicznych i zasilania konsoli.*
 
-Architektura sprzętowa projektu, zgodnie z powyższym schematem, dzieli się na kilka współpracujących ze sobą, lecz funkcjonalnie niezależnych systemów. Punktem zbiorczym dla całości jest mikrokontroler ESP32:
+Architektura sprzętowa projektu, zgodnie z powyższym schematem przedstawionym na **Rysunku 2**, dzieli się na kilka współpracujących ze sobą, lecz funkcjonalnie niezależnych systemów. Punktem zbiorczym dla całości jest mikrokontroler ESP32:
 * **System zasilania (Power):** Obwód zapewniający stałe i bezpieczne zasilanie dla elektroniki. Napięcie z akumulatora przechodzi przez układ ładujący (TP4056), główny włącznik zasilania (Switch) i przetwornicę 5V, by na końcu zasilić układ ESP32.
 * **Wyświetlacz (Display):** Podłączony do pinów mikrokontrolera przeznaczonych dla protokołu SPI, co umożliwia wysyłanie klatek wideo z dużą prędkością.
 * **System dźwiękowy (Audio System):** Wykorzystuje specjalistyczne piny I2S w mikrokontrolerze ESP32, aby wysyłać strumień dźwięku (audio cyfrowe) do zewnętrznego wzmacniacza sygnału przed wyprowadzeniem go na głośnik.
@@ -105,7 +107,7 @@ Aplikacja Menu (dziedzicząca po `IGame`) pozwala na nawigację po dostępnej li
 Aby oddzielić logikę gier od szczegółów technicznych mikrokontrolera ESP32, stworzono warstwę abstrakcji sprzętowej (HAL). Znajduje się ona w katalogach `include/hardware` oraz `src/hardware` i dzieli się na trzy główne moduły:
 
 #### 1. Wyświetlacz – `Display` (`include/hardware/display.h`, `src/hardware/display.cpp`)
-Przestrzeń nazw `Display` odpowiada za niskopoziomowe zarządzanie ekranem TFT opartym o bibliotekę `TFT_eSPI`. Kluczowe rozwiązania obejmują:
+Przestrzeń nazw `Display` odpowiada za niskopoziomowe zarządzanie ekranem TFT opartym o bibliotekę `TFT_eSPI` [3]. Kluczowe rozwiązania obejmują:
 * **Podwójne buforowanie (Double Buffering):** Aby wyeliminować efekt migotania (flicker) podczas dynamicznego rysowania klatek, zaimplementowano buforowanie w pamięci RAM mikrokontrolera za pomocą klasy `TFT_eSprite`. Gry rysują bezpośrednio na buforze (`backbuffer`), a gotowy obraz jest kopiowany na fizyczny wyświetlacz jednorazowo w pętli głównej programu metodą `Display::update()`.
 * **Regulacja jasności:** Za pomocą pinu GPIO 8 kontrolowana jest jasność podświetlenia ekranu. Wykorzystano sygnał PWM (`analogWrite`), mapując procentową jasność (10-100%) na wypełnienie sygnału (25-255).
 
@@ -117,7 +119,7 @@ Obsługa interfejsu wejścia została zamknięta w przestrzeni nazw `Buttons`. Z
 
 #### 3. System audio – `Sound` (`include/hardware/sound.h`, `src/hardware/sound.cpp`)
 Odtwarzanie efektów dźwiękowych oraz muzyki w tle (BGM) wymaga odpowiedniej wydajności i płynnego przesyłu danych. Zrealizowano to w sposób asynchroniczny:
-* **Wykorzystanie FreeRTOS:** Dźwięk jest dekodowany i miksowany w dedykowanym zadaniu FreeRTOS (`SoundTask`), które jest przypisane do rdzenia 0 procesora ESP32 (logika gier i grafika działają na rdzeniu 1). Zapobiega to spowolnieniom gry (lagom) wywołanym odczytem plików z pamięci flash SPIFFS.
+* **Wykorzystanie FreeRTOS:** Dźwięk jest dekodowany i miksowany w dedykowanym zadaniu FreeRTOS [5] (`SoundTask`), które jest przypisane do rdzenia 0 procesora ESP32 (logika gier i grafika działają na rdzeniu 1). Zapobiega to spowolnieniom gry (lagom) wywołanym odczytem plików z pamięci flash SPIFFS.
 * **Kolejkowanie poleceń (Command Queue):** Komunikacja pomiędzy grą (rdzeń 1) a zadaniem dźwiękowym (rdzeń 0) odbywa się za pomocą bezpiecznej wątkowo kolejki FreeRTOS (`soundQueue`). Gra wysyła polecenia typu `playBGM`, `stopBGM` czy `playSFX`.
 * **Mikser programowy:** System potrafi odtwarzać jednocześnie muzykę w tle (BGM) oraz nakładać na nią efekty dźwiękowe (SFX). Próbki z dwóch plików WAV (odczytywanych ze SPIFFS) są sumowane z uwzględnieniem głośności globalnej oraz zabezpieczone przed przesterowaniem (obcinanie wartości powyżej zakresu 16-bitowego za pomocą pomocniczej funkcji `clipAudio`).
 * **Interfejs I2S:** Cyfrowe próbki audio są przesyłane bezpośrednio do zewnętrznego wzmacniacza MAX98357A poprzez magistralę I2S.
@@ -138,3 +140,14 @@ Oszczędza to ogromne ilości cennej pamięci Flash/RAM. Detekcja kolizji wykorz
 
 * **Nowoczesne mechaniki Tetrisa:** Oprogramowanie gry rozszerzono o zasady popularne we współczesnych wariacjach tej produkcji. Mamy tutaj podgląd upadku zwany **"Ghost Block"** – pętla symuluje upadek i obrysowuje w miejscu uderzenia półprzezroczysty kwadrat jako ułatwienie dla gracza. Zaimplementowano także wsparcie do przetrzymywania bloków w pamięci na później poprzez wciśnięcie klawisza `SELECT` (Hold).
 * **Profesjonalny Input Gracza:** Tetris implementuje rozwiązanie **DAS** (Delayed Auto Shift). Oznacza to, że pojedyncze wciśnięcie gałki w bok przesuwa klocek o 1 pole, lecz jej przytrzymanie czeka najpierw np. 250ms, a potem płynnie wprawia blok w kontrolowany ślizg w lewo lub w prawo, zwiększając zręcznościowe odczucia z obsługi.
+
+## 5. Bibliografia i literatura
+
+1. **[1] Espressif Systems** – *ESP32-S3 Series Datasheet*, Dokumentacja techniczna układu ESP32-S3. Dostęp online: [https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf)
+2. **[2] Maxim Integrated (Analog Devices)** – *MAX98357A Mono Class D Amplifier Datasheet*, Specyfikacja wzmacniacza audio I2S. Dostęp do pobrania: [https://sklep.msalamon.pl/download/43470/?tmstv=1688411174](https://sklep.msalamon.pl/download/43470/?tmstv=1688411174)
+3. **[3] Bodmer** – *TFT_eSPI*, Biblioteka do obsługi wyświetlaczy TFT dla mikrokontrolerów ESP8266 i ESP32. Repozytorium GitHub: [https://github.com/Bodmer/TFT_eSPI](https://github.com/Bodmer/TFT_eSPI)
+4. **[4] Espressif Systems** – *Arduino Core for the ESP32, ESP32-S2 and ESP32-C3*, Środowisko uruchomieniowe Arduino. Repozytorium GitHub: [https://github.com/espressif/arduino-esp32](https://github.com/espressif/arduino-esp32)
+5. **[5] Amazon Web Services / Real Time Engineers Ltd.** – *FreeRTOS Kernel Developer Guide*, Dokumentacja systemu FreeRTOS wykorzystywanego w ESP32 SDK (ESP-IDF). Dostęp online: [https://www.freertos.org/](https://www.freertos.org/)
+6. **[6] PlatformIO** – *PlatformIO Core and IDE Documentation*, System budowania projektów embedded. Dostęp online: [https://docs.platformio.org/](https://docs.platformio.org/)
+7. **[7] TP4056** – *TP4056 1A Standalone Linear Li-lon Battery Charger Datasheet*, Specyfikacja układu ładowarki akumulatorów litowo-polimerowych. Dostępna do pobrania: [https://botland.com.pl/index.php?controller=attachment&id_attachment=1726](https://botland.com.pl/index.php?controller=attachment&id_attachment=1726)
+
